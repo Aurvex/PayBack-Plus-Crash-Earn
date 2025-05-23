@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PayBack Plus - Crash & Earn Coins</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+    <style>
+        /* CSS remains largely the same, with additions for the new profit display */
+        :root {
+            --font-primary: 'Orbitron', sans-serif;
+            --font-secondary: 'Roboto', sans-serif;
+            --background-color: #0c0c0f;
+            --card-bg: #1a1a1f;
+            --input-bg: #222228;
+            --border-color: #333338;
+            --text-color: #e0e0e0;
+            --text-color-muted: #888;
+            --light-text-color: #ffffff;
+            --primary-action-color: #ffb300;
+            --primary-action-hover: #ffc107;
+            --glow-primary: rgba(255, 179, 0, 0.6);
+            --crash-color: #e91e63;
+            --glow-crash: rgba(233, 30, 99, 0.7);
+            --success-color: #00e676;
+            --glow-success: rgba(0, 230, 118, 0.7);
+            --accent-color-blue: #2979ff;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: var(--font-secondary);
+            background-color: var(--background-color); color: var(--text-color);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            min-height: 100vh; padding: 20px; text-align: center;
+        }
+        .container {
+            background-color: var(--card-bg); padding: 30px; border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25), 0 0 0 1px var(--border-color);
+            width: 100%; max-width: 420px;
+        }
+        h1 {
+            font-family: var(--font-primary); color: var(--primary-action-color);
+            margin-bottom: 30px; font-weight: 700; font-size: 2rem;
+            text-shadow: 0 0 10px var(--glow-primary);
+        }
+        h2 {
+            font-family: var(--font-primary); color: var(--text-color);
+            margin-bottom: 15px; font-weight: 500;
+        }
+        .auth-form, .app-content { display: flex; flex-direction: column; gap: 15px; /* Reduced gap slightly */ }
+        .auth-form input, .game-controls input[type="number"] {
+            padding: 14px 18px; border-radius: 8px; border: 1px solid var(--border-color);
+            font-size: 1rem; font-family: var(--font-secondary);
+            background-color: var(--input-bg); color: var(--text-color);
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .auth-form input::placeholder { color: var(--text-color-muted); }
+        .auth-form input:focus, .game-controls input[type="number"]:focus {
+            outline: none; border-color: var(--primary-action-color);
+            box-shadow: 0 0 0 3px var(--glow-primary);
+        }
+        .auth-button, .action-button, .logout-button {
+            padding: 14px 18px; border-radius: 8px; border: 0;
+            font-size: 1rem; font-family: var(--font-primary); font-weight: 700;
+            cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px;
+            transition: background-color 0.2s, box-shadow 0.2s, transform 0.1s;
+        }
+        .auth-button { background-color: var(--accent-color-blue); color: var(--light-text-color); }
+        .auth-button:hover, .auth-button:focus {
+            background-color: #2161cc; box-shadow: 0 0 12px rgba(41, 121, 255, 0.5);
+        }
+        .action-button { background-color: var(--primary-action-color); color: var(--background-color); }
+        .action-button.cashout { background-color: var(--success-color); color: var(--background-color); }
+        .action-button:hover, .action-button:focus {
+            filter: brightness(110%); box-shadow: 0 0 15px var(--glow-primary);
+        }
+        .action-button.cashout:hover, .action-button.cashout:focus {
+             box-shadow: 0 0 15px var(--glow-success);
+        }
+        .action-button:disabled, .auth-button:disabled {
+            background-color: #444; color: #888; cursor: not-allowed; box-shadow: none;
+            filter: grayscale(70%); transform: none;
+        }
+        .auth-button:active, .action-button:active { transform: scale(0.98); }
+        .toggle-form {
+            color: var(--primary-action-color); cursor: pointer; text-decoration: none;
+            margin-top: 5px; font-size: 0.9rem; font-family: var(--font-secondary);
+        }
+        .toggle-form:hover { text-decoration: underline; }
+        .hidden { display: none !important; }
+
+        .user-info {
+            padding: 10px 15px; /* Slightly reduced padding */
+            background-color: var(--input-bg);
+            border-radius: 8px; border: 1px solid var(--border-color);
+            font-family: var(--font-secondary);
+            display: grid; /* Use grid for better alignment */
+            grid-template-columns: auto 1fr; /* Username | Balance & Profit */
+            gap: 5px 15px; /* Row gap, Column gap */
+            align-items: center;
+        }
+        .user-info .username-display {
+            grid-column: 1 / 2; /* Span one column */
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+        .user-info .balance-display, .user-info .profit-display {
+            grid-column: 2 / 3; /* Span one column */
+            text-align: right;
+            font-size: 0.9rem;
+        }
+        .user-info .balance-display span, .user-info .profit-display span {
+            font-weight: 700;
+            color: var(--primary-action-color);
+            font-size: 1rem;
+        }
+         .user-info .profit-display span.positive { color: var(--success-color); }
+         .user-info .profit-display span.negative { color: var(--crash-color); }
+
+
+        .game-area {
+            background: linear-gradient(145deg, #1c1c22, #121215);
+            padding: 30px 20px; border-radius: 12px; margin-bottom: 15px; /* Reduced margin */
+            border: 1px solid var(--border-color); box-shadow: inset 0 0 15px rgba(0,0,0,0.3);
+        }
+        #multiplier-display {
+            font-family: var(--font-primary); font-size: 4rem; font-weight: 700;
+            color: var(--primary-action-color); transition: color 0.3s, text-shadow 0.3s;
+            margin-bottom: 10px; line-height: 1; text-shadow: 0 0 15px var(--glow-primary);
+        }
+        #multiplier-display.crashed { color: var(--crash-color); text-shadow: 0 0 15px var(--glow-crash); }
+        #multiplier-display.cashed_out { color: var(--success-color); text-shadow: 0 0 15px var(--glow-success); }
+
+        .game-controls { display: flex; flex-direction: column; gap: 10px; }
+        .game-controls label {
+            font-size: 0.9rem; color: var(--text-color-muted);
+            margin-bottom: -5px; text-align: left; font-family: var(--font-secondary);
+        }
+        .game-message {
+            margin-top: 15px; font-size: 1.1rem; font-weight: 500;
+            min-height: 1.5em; font-family: var(--font-secondary);
+        }
+        .game-message.win { color: var(--success-color); text-shadow: 0 0 8px var(--glow-success); }
+        .game-message.loss { color: var(--crash-color); text-shadow: 0 0 8px var(--glow-crash); }
+        .logout-button {
+            background-color: var(--crash-color); color: var(--light-text-color);
+        }
+        .logout-button:hover, .logout-button:focus {
+            background-color: #c51152; box-shadow: 0 0 12px var(--glow-crash) !important;
+        }
+        @media (max-width: 600px) {
+            .container { margin: 15px; padding: 20px; }
+            h1 { font-size: 1.75rem; }
+            #multiplier-display { font-size: 3rem; }
+            .user-info { grid-template-columns: 1fr; text-align: center; } /* Stack user info on mobile */
+            .user-info .username-display, .user-info .balance-display, .user-info .profit-display {
+                grid-column: 1 / -1; text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>PayBack Plus <br> Crash & Earn Coins</h1>
+
+        <div id="auth-section">
+            <!-- Auth forms unchanged -->
+            <div id="signup-form" class="auth-form">
+                <h2>Create Account</h2>
+                <input type="text" id="signup-name" placeholder="Username" required>
+                <input type="email" id="signup-email" placeholder="Email" required>
+                <input type="password" id="signup-password" placeholder="Password" required>
+                <button id="signup-button" class="auth-button">Sign Up</button>
+                <p class="toggle-form" onclick="toggleForms()">Already have an account? Login</p>
+            </div>
+            <div id="login-form" class="auth-form hidden">
+                <h2>Login to Play</h2>
+                <input type="email" id="login-email" placeholder="Email" required>
+                <input type="password" id="login-password" placeholder="Password" required>
+                <button id="login-button" class="auth-button">Login</button>
+                <p class="toggle-form" onclick="toggleForms()">Don't have an account? Sign Up</p>
+            </div>
+        </div>
+
+        <div id="app-section" class="app-content hidden">
+            <div class="user-info">
+                <p class="username-display">Welcome, <span id="user-name-display"></span>!</p>
+                <p class="balance-display">Balance: <span id="user-coins-display"></span></p>
+                <p class="profit-display">Session Profit: <span id="session-profit-display">0.00</span></p> <!-- New Display -->
+            </div>
+
+            <div class="game-area">
+                <div id="multiplier-display">1.00x</div>
+            </div>
+
+            <div class="game-controls">
+                <label for="bet-amount">Bet Amount:</label>
+                <input type="number" id="bet-amount" placeholder="0.00" min="1" step="any">
+            </div>
+            
+            <button id="action-button" class="action-button">Place Bet</button>
+            
+            <p id="game-message" class="game-message"></p>
+            <button id="logout-button" class="logout-button">Logout</button>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        // ... (previous DOM elements)
+        const sessionProfitDisplay = document.getElementById('session-profit-display'); // New
+        // ... (rest of DOM elements)
+        const authSection = document.getElementById('auth-section');
+        const appSection = document.getElementById('app-section');
+        const signupForm = document.getElementById('signup-form');
+        const loginForm = document.getElementById('login-form');
+        const userNameDisplay = document.getElementById('user-name-display');
+        const userCoinsDisplay = document.getElementById('user-coins-display');
+        const multiplierDisplay = document.getElementById('multiplier-display');
+        const betAmountInput = document.getElementById('bet-amount');
+        const actionButton = document.getElementById('action-button');
+        const gameMessage = document.getElementById('game-message');
+        const logoutButton = document.getElementById('logout-button');
+        const signupNameInput = document.getElementById('signup-name');
+        const signupEmailInput = document.getElementById('signup-email');
+        const signupPasswordInput = document.getElementById('signup-password');
+        const signupButton = document.getElementById('signup-button');
+        const loginEmailInput = document.getElementById('login-email');
+        const loginPasswordInput = document.getElementById('login-password');
+        const loginButton = document.getElementById('login-button');
+
+
+        // --- Game State & Config ---
+        let currentUser = null;
+        const USERS_REGISTRY_KEY = 'paybackPlusUserRegistry_v2'; // Incremented for new structure
+        const ACTIVE_SESSION_DATA_KEY = 'paybackPlusActiveSession_v2'; // Incremented
+        const INITIAL_COINS = 10000;
+
+        let currentBet = 0;
+        let currentMultiplier = 1.00;
+        let targetCrashMultiplier = 0;
+        let gameRunning = false;
+        let canCashOut = false;
+        let multiplierInterval;
+
+        // --- Storage & Auth Utility Functions ---
+        // (getRegisteredUsers, saveRegisteredUsers, getActiveSessionData, saveActiveSessionData, hashPassword, toggleForms remain the same)
+        function getRegisteredUsers() { return JSON.parse(localStorage.getItem(USERS_REGISTRY_KEY)) || []; }
+        function saveRegisteredUsers(usersArray) { localStorage.setItem(USERS_REGISTRY_KEY, JSON.stringify(usersArray)); }
+        function getActiveSessionData() { return JSON.parse(localStorage.getItem(ACTIVE_SESSION_DATA_KEY)); }
+        function saveActiveSessionData(sessionDataObject) {
+            if (sessionDataObject) localStorage.setItem(ACTIVE_SESSION_DATA_KEY, JSON.stringify(sessionDataObject));
+            else localStorage.removeItem(ACTIVE_SESSION_DATA_KEY);
+        }
+        function hashPassword(password) { return btoa(password + "payback_plus_salt_v2"); } // Updated salt if needed
+        function toggleForms() { signupForm.classList.toggle('hidden'); loginForm.classList.toggle('hidden'); }
+        
+        function showAuthView() { /* ... same ... */ 
+            authSection.classList.remove('hidden');
+            appSection.classList.add('hidden');
+            gameMessage.textContent = '';
+            resetGameVisuals(); 
+        }
+        function showAppView() { /* ... same ... */ 
+            authSection.classList.add('hidden');
+            appSection.classList.remove('hidden');
+            updateUI();
+            resetGameVisuals(); 
+        }
+
+        function formatCoins(amount, forProfit = false) {
+            const num = parseFloat(amount);
+            let formatted = num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            if (forProfit && num > 0) {
+                formatted = "+" + formatted;
+            }
+            return formatted;
+        }
+
+        function updateUI() {
+            if (currentUser) {
+                userNameDisplay.textContent = currentUser.name;
+                userCoinsDisplay.textContent = formatCoins(currentUser.coins);
+                
+                // Update session profit display and color
+                sessionProfitDisplay.textContent = formatCoins(currentUser.sessionProfit, true);
+                if (currentUser.sessionProfit > 0) {
+                    sessionProfitDisplay.className = 'positive';
+                } else if (currentUser.sessionProfit < 0) {
+                    sessionProfitDisplay.className = 'negative';
+                } else {
+                    sessionProfitDisplay.className = ''; // Neutral
+                }
+            }
+            multiplierDisplay.textContent = currentMultiplier.toFixed(2) + "x";
+            betAmountInput.disabled = gameRunning;
+        }
+
+        function generateCrashPoint() { /* ... same ... */ 
+            const r = Math.random();
+            if (r < 0.40) return 1.00 + Math.random() * 0.5; 
+            if (r < 0.65) return 1.50 + Math.random() * 1.5; 
+            if (r < 0.85) return 3.00 + Math.random() * 7;   
+            if (r < 0.95) return 10.0 + Math.random() * 40;  
+            if (r < 0.99) return 50.0 + Math.random() * 150; 
+            return 200.0 + Math.random() * 300;      
+        }
+
+        function startGame() {
+            const bet = parseFloat(betAmountInput.value);
+            if (isNaN(bet) || bet <= 0) { /* ... */ gameMessage.textContent = "Invalid bet amount."; gameMessage.className = 'game-message loss'; return; }
+            if (bet > currentUser.coins) { /* ... */ gameMessage.textContent = "Insufficient balance."; gameMessage.className = 'game-message loss'; return; }
+
+            currentBet = bet;
+            currentUser.coins -= currentBet;
+            currentUser.sessionProfit = parseFloat((currentUser.sessionProfit - currentBet).toFixed(2)); // Deduct from session profit
+
+            saveActiveSessionData(currentUser);
+            updateUI();
+
+            gameRunning = true;
+            canCashOut = true;
+            currentMultiplier = 1.00;
+            targetCrashMultiplier = generateCrashPoint();
+            console.log("Game started. Target Crash:", targetCrashMultiplier.toFixed(2) + "x");
+            
+            multiplierDisplay.className = '';
+            gameMessage.textContent = `Bet Placed: ${formatCoins(currentBet)}. Good Luck!`;
+            gameMessage.className = 'game-message';
+            actionButton.textContent = `Cash Out @ ${currentMultiplier.toFixed(2)}x`;
+            actionButton.classList.add('cashout');
+            actionButton.disabled = false;
+            betAmountInput.disabled = true;
+
+            multiplierInterval = setInterval(() => { /* ... same increment logic ... */ 
+                if (!gameRunning) { clearInterval(multiplierInterval); return; }
+                let increment; 
+                if (currentMultiplier < 1.5) increment = 0.01;
+                else if (currentMultiplier < 3) increment = 0.015;
+                else if (currentMultiplier < 5) increment = 0.02;
+                else if (currentMultiplier < 10) increment = 0.03 + (currentMultiplier / 200); 
+                else if (currentMultiplier < 20) increment = 0.05 + (currentMultiplier / 150);
+                else if (currentMultiplier < 50) increment = 0.1 + (currentMultiplier / 100);
+                else increment = 0.2 + (currentMultiplier / 80);
+
+                currentMultiplier += increment;
+                currentMultiplier = Math.min(currentMultiplier, 9999.99);
+
+                if (currentMultiplier >= targetCrashMultiplier) {
+                    handleCrash(targetCrashMultiplier); return;
+                }
+                multiplierDisplay.textContent = currentMultiplier.toFixed(2) + "x";
+                if (canCashOut) {
+                    actionButton.textContent = `Cash Out @ ${currentMultiplier.toFixed(2)}x`;
+                }
+            }, 60);
+        }
+
+        function handleCashOut() {
+            if (!gameRunning || !canCashOut) return;
+            canCashOut = false;
+            actionButton.disabled = true;
+            clearInterval(multiplierInterval);
+            
+            const grossWinnings = currentBet * currentMultiplier;
+            const netWinningsForSession = grossWinnings - currentBet; // Profit from this specific round
+
+            currentUser.coins = parseFloat((currentUser.coins + grossWinnings).toFixed(2));
+            currentUser.sessionProfit = parseFloat((currentUser.sessionProfit + grossWinnings).toFixed(2)); // Add GROSS winnings to profit here, since bet was already deducted
+
+            saveActiveSessionData(currentUser);
+
+            gameMessage.textContent = `Cashed Out @ ${currentMultiplier.toFixed(2)}x! Won: ${formatCoins(grossWinnings)}!`;
+            gameMessage.className = 'game-message win';
+            multiplierDisplay.classList.add('cashed_out');
+            confetti({ particleCount: 200, spread: 120, origin: { y: 0.5 }, angle: Math.random() * 360 });
+            
+            setTimeout(resetGameFlow, 3500);
+        }
+
+        function handleCrash(crashAtMultiplier) {
+            if(!gameRunning) return;
+            clearInterval(multiplierInterval);
+            gameRunning = false;
+            canCashOut = false;
+            
+            currentMultiplier = Math.min(crashAtMultiplier, 9999.99);
+            multiplierDisplay.textContent = currentMultiplier.toFixed(2) + "x";
+            multiplierDisplay.classList.add('crashed');
+            actionButton.disabled = true;
+
+            // sessionProfit was already reduced by currentBet when the bet was placed. No further change needed here for sessionProfit.
+            gameMessage.textContent = `CRASHED @ ${currentMultiplier.toFixed(2)}x! Lost: ${formatCoins(currentBet)}.`;
+            gameMessage.className = 'game-message loss';
+            
+            // currentUser.coins already reflects the lost bet
+            saveActiveSessionData(currentUser); // Save to persist the loss in main balance and session profit
+            setTimeout(resetGameFlow, 3500);
+        }
+
+        function resetGameVisuals() { /* ... same ... */ 
+            currentMultiplier = 1.00;
+            multiplierDisplay.textContent = "1.00x";
+            multiplierDisplay.className = '';
+            actionButton.textContent = "Place Bet";
+            actionButton.classList.remove('cashout');
+            actionButton.disabled = false;
+            betAmountInput.disabled = false;
+            betAmountInput.value = ''; 
+        }
+        function resetGameFlow() { /* ... same ... */ 
+            resetGameVisuals();
+            updateUI(); 
+        }
+
+        // --- Auth Event Handlers ---
+        signupButton.addEventListener('click', () => { /* ... same as before ... */ 
+            const name = signupNameInput.value.trim();
+            const email = signupEmailInput.value.trim().toLowerCase();
+            const password = signupPasswordInput.value.trim();
+            if (!name || !email || !password) { alert('Please fill in all fields.'); return; }
+            if (!email.includes('@')) { alert('Please enter a valid email.'); return; }
+            let registeredUsers = getRegisteredUsers();
+            if (registeredUsers.find(user => user.email === email)) {
+                alert('Email already registered. Please login.'); return;
+            }
+            const newUserAccount = { name, email, passwordHash: hashPassword(password) };
+            registeredUsers.push(newUserAccount);
+            saveRegisteredUsers(registeredUsers);
+            alert('Account Created! Login to get your 10,000 starting coins.');
+            signupNameInput.value = ''; signupEmailInput.value = ''; signupPasswordInput.value = '';
+            toggleForms();
+        });
+
+        loginButton.addEventListener('click', () => {
+            const email = loginEmailInput.value.trim().toLowerCase();
+            const password = loginPasswordInput.value.trim();
+            if (!email || !password) { alert('Please fill in all fields.'); return; }
+            const registeredUsers = getRegisteredUsers();
+            const userAccount = registeredUsers.find(user => user.email === email);
+            if (!userAccount || userAccount.passwordHash !== hashPassword(password)) {
+                alert('Invalid email or password.'); return;
+            }
+            
+            let existingSession = getActiveSessionData();
+            if (existingSession && existingSession.email === userAccount.email) {
+                currentUser = existingSession;
+                // If sessionProfit isn't in old data, initialize it
+                if (typeof currentUser.sessionProfit === 'undefined') {
+                    currentUser.sessionProfit = 0;
+                }
+                console.log("Restored session for:", currentUser.name, "Session Profit:", currentUser.sessionProfit);
+            } else {
+                currentUser = {
+                    name: userAccount.name, email: userAccount.email,
+                    coins: INITIAL_COINS,
+                    sessionProfit: 0 // Initialize session profit to 0 for a new login
+                };
+                console.log("New session for:", currentUser.name, "with initial coins. Session Profit set to 0.");
+            }
+            saveActiveSessionData(currentUser);
+            loginEmailInput.value = ''; loginPasswordInput.value = '';
+            showAppView();
+        });
+        
+        logoutButton.addEventListener('click', () => { /* ... same ... */ 
+            currentUser = null;
+            saveActiveSessionData(null);
+            showAuthView();
+        });
+
+        actionButton.addEventListener('click', () => { /* ... same ... */ 
+            if (!currentUser) { alert("Please login first."); showAuthView(); return; }
+            if (!gameRunning) { startGame(); } 
+            else if (canCashOut) { handleCashOut(); }
+        });
+        
+        function init() { /* ... same ... */ 
+            console.log("PayBack Plus Initializing...");
+            let sessionData = getActiveSessionData();
+            if (sessionData) {
+                currentUser = sessionData;
+                // Ensure sessionProfit exists for older data before this feature
+                if (typeof currentUser.sessionProfit === 'undefined') {
+                    currentUser.sessionProfit = 0;
+                    saveActiveSessionData(currentUser); // Save it back if it was missing
+                }
+                console.log("Active session found for:", currentUser.name);
+                showAppView();
+            } else {
+                console.log("No active session. Showing auth view.");
+                showAuthView();
+            }
+        }
+
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+        else init();
+    </script>
+</body>
+</html>
+<script async="async" data-cfasync="false" src="//pl26680594.profitableratecpm.com/1f2ca49ec2601694b6f1db3fa23083ce/invoke.js"></script>
+<div id="container-1f2ca49ec2601694b6f1db3fa23083ce"></div>
+<script type='text/javascript' src='//pl26682194.profitableratecpm.com/39/96/72/39967288497cee6868aa919c6ec78a92.js'></script>
+<script type="text/javascript">
+	atOptions = {
+		'key' : 'f363586a54d76b31985c0b2c3302c3d4',
+		'format' : 'iframe',
+		'height' : 50,
+		'width' : 320,
+		'params' : {}
+	};
+</script>
+<script type="text/javascript" src="//www.highperformanceformat.com/f363586a54d76b31985c0b2c3302c3d4/invoke.js"></script>
